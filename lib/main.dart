@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_meals_app/dummy_data.dart';
+import 'package:flutter_meals_app/models/meal.dart';
 import 'package:flutter_meals_app/screens/categories_screen.dart';
 import 'package:flutter_meals_app/screens/category_meals_screen.dart';
 import 'package:flutter_meals_app/screens/filters_screen.dart';
@@ -9,8 +11,71 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late List<Meal> _availableMeals;
+  late List<Meal> _favoritesMeals;
+  late Map<String, bool> _filters;
+  @override
+  void initState() {
+    _availableMeals = DUMMY_MEALS;
+    _favoritesMeals = [];
+    _filters = {
+      'gluten': false,
+      'lactose': false,
+      'vegetarian': false,
+      'vegan': false,
+    };
+    super.initState();
+  }
+
+  void _setFilters(Map<String, bool> filterData) {
+    setState(() {
+      _filters = filterData;
+
+      _availableMeals = DUMMY_MEALS.where((meal) {
+        if (_filters['gluten']! && !meal.isGlutenFree) {
+          return false;
+        }
+        if (_filters['lactose']! && !meal.isLactoseFree) {
+          return false;
+        }
+        if (_filters['vegetarian']! && !meal.isVegetarian) {
+          return false;
+        }
+        if (_filters['vegan']! && !meal.isVegan) {
+          return false;
+        }
+        return true;
+      }).toList();
+    });
+  }
+
+  void _toggleFavorite(String mealId) {
+    final exitingIndex =
+        _favoritesMeals.indexWhere((meal) => meal.id == mealId);
+    if (exitingIndex >= 0) {
+      setState(() {
+        _favoritesMeals.removeAt(exitingIndex);
+      });
+    } else {
+      setState(() {
+        _favoritesMeals.add(
+          DUMMY_MEALS.firstWhere((meal) => meal.id == mealId),
+        );
+      });
+    }
+  }
+
+  bool _isMealFavorite(String id) {
+    return _favoritesMeals.any((meal) => meal.id == id);
+  }
 
   // This widget is the root of your application.
   @override
@@ -41,10 +106,13 @@ class MyApp extends StatelessWidget {
       // home: const CategoriesScreen(),
       initialRoute: '/',
       routes: {
-        '/': (context) => const TabsScreen(),
-        CategoryMealsScreen.routeName: (context) => const CategoryMealsScreen(),
-        MealDetailScreen.routeName: (context) => const MealDetailScreen(),
-        FiltersScreen.routeName: (context) => const FiltersScreen(),
+        '/': (context) => TabsScreen(_favoritesMeals),
+        CategoryMealsScreen.routeName: (context) =>
+            CategoryMealsScreen(_availableMeals, _favoritesMeals),
+        MealDetailScreen.routeName: (context) =>
+            MealDetailScreen(_toggleFavorite, _isMealFavorite),
+        FiltersScreen.routeName: (context) =>
+            FiltersScreen(_filters, _setFilters),
       },
       // onGenerateRoute: (settings) {
       //   print(settings.arguments);
@@ -59,7 +127,7 @@ class MyApp extends StatelessWidget {
       //Untuk menampilkan halaman 404
       onUnknownRoute: (settings) {
         return MaterialPageRoute(
-          builder: (context) => CategoriesScreen(),
+          builder: (context) => const CategoriesScreen(),
         );
       },
     );
